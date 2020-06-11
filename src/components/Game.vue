@@ -62,6 +62,7 @@ import PlayerLabel from "./PlayerLabel.vue";
 import GameInfo from "./GameInfo.vue";
 import { range, isEqual, sumBy, sortBy } from "lodash";
 import { UIData } from '../types/ui-data';
+import { logToText } from '../utils/log-to-text';
 
 @Component({
   created (this: Game) {
@@ -125,6 +126,10 @@ export default class Game extends Vue {
   replaceState () {
     this._futureState = this.state;
     this.G = JSON.parse(JSON.stringify(this.state));
+
+    if (this.G) {
+      this.emitter.emit("uplink:replaceLog", [...this.G!.log.map((x: LogItem) => logToText(this.G!, x))].flat(1));
+    }
   }
 
   get handCards() {
@@ -299,6 +304,7 @@ export default class Game extends Vue {
     console.log("advancing log", this.G!.log.length, this._futureState!.log.length);
     const logItem = this._futureState!.log[this.G!.log.length];
     this.G!.log.push(logItem);
+    this.emitter.emit("uplink:addLog", logToText(this.G!, logItem));
     this.delay(1);
 
     switch (logItem.type) {

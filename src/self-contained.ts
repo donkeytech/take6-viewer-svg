@@ -7,6 +7,10 @@ function launchSelfContained (selector = "#app") {
 
   let gameState = setup(10, {});
 
+  for (let i = 0; i < gameState.players.length; i++) {
+    gameState.players[i].name = `Player ${i+1}`;
+  }
+
   for (const player of gameState.players.slice(1)) {
     player.isAI = true;
   }
@@ -31,6 +35,9 @@ function launchSelfContained (selector = "#app") {
   });
 
   emitter.on('fetchSate', () => emitter.emit("state", cloneDeep(stripSecret(gameState, 0))));
+
+  emitter.on('addLog', data => console.log('addLog', data));
+  emitter.on('replaceLog', data => console.log('replaceLog', data));
 
   emitter.emit("player", {index: 0});
   emitter.emit("state", cloneDeep(stripSecret(gameState, 0)));

@@ -15,6 +15,8 @@ function launch (selector: string) {
 
   params.emitter.on("move", (move: Move) => item.emit("move", move));
   params.emitter.on("fetchState", () => item.emit("fetchState"));
+  params.emitter.on("uplink:addLog", (data: string[]) => item.emit("addLog", data));
+  params.emitter.on("uplink:replaceLog", (data: string[]) => item.emit("replaceLog", data));
 
   item.addListener("state", data => {
     console.log("updating state to", data);
