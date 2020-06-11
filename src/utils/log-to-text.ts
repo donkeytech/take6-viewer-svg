@@ -32,7 +32,7 @@ export function logToText (G: GameState, item: LogItem): string[] {
           const ret: string[] = [];
 
           item.event.cards.forEach((card, i) => {
-            ret.push(`${G.players[i].name} reveals ${card.number} (${new Array(card.points).fill('*').join('')})`);
+            ret.push(`${G.players[i].name} reveals ${card.number} (${new Array(card.points).fill('★').join('')})`);
           });
 
           return ret;
