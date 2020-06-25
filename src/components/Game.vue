@@ -54,7 +54,8 @@
 </template>
 <script lang="ts">
 import { Vue, Component, Prop, Watch, Provide, ProvideReactive } from 'vue-property-decorator';
-import { LogItem, GameState, MoveName, Card as ICard, AvailableMoves, GameEventName } from 'take6-engine';
+import { LogItem, MoveName, Card as ICard, AvailableMoves, GameEventName, Phase } from 'take6-engine';
+import type { GameState } from 'take6-engine';
 import { EventEmitter } from 'events';
 import Card from "./Card.vue";
 import PlaceHolder from "./Placeholder.vue";
@@ -67,6 +68,44 @@ import { logToText } from '../utils/log-to-text';
 @Component({
   created (this: Game) {
     this.emitter.on("addLog", this.addLog.bind(this));
+
+    this.emitter.on("replayStart", () => {
+      this.emitter.emit("replay:info", {start: 1, current: this.G!.log.length, end: this._futureState!.log.length});
+      this.paused = true;
+    });
+
+    this.emitter.on("replayTo", (to: number) => {
+      if (to < this.G!.log.length) {
+        this.replaceState({
+          players: this.G!.players.map(player => ({
+            hand: [],
+            points: 0,
+            faceDownCard: null,
+            name: player.name,
+            availableMoves: null,
+            discard: [],
+            isAI: player.isAI
+          })),
+          rows: [[], [], [], []],
+          seed: '',
+          round: 0,
+          phase: Phase.ChooseCard,
+          options: this.G!.options,
+          log: []
+        }, false);
+      }
+
+      while (this.G!.log.length < to) {
+        this.advanceLog();
+      }
+
+      this.emitter.emit("replay:info", {start: 1, current: this.G!.log.length, end: this._futureState!.log.length});
+    });
+
+    this.emitter.on("replayEnd", () => {
+      this.paused = false;
+      this.emitter.emit("fetchState");
+    });
   },
   components: {
     Card,
@@ -85,6 +124,8 @@ export default class Game extends Vue {
 
   @Prop()
   emitter!: EventEmitter;
+
+  paused = false;
 
   @Provide()
   ui: UIData = {cards: {}, placeholders: {rows: [], players: []}, waitingAnimations: 0};
@@ -123,9 +164,12 @@ export default class Game extends Vue {
   }
 
   @Watch("state", { immediate: true })
-  replaceState () {
-    this._futureState = this.state;
-    this.G = JSON.parse(JSON.stringify(this.state));
+  replaceState (state: GameState, replaceFuture = true) {
+    if (replaceFuture) {
+      this._futureState = state;
+    }
+
+    this.G = JSON.parse(JSON.stringify(state));
 
     if (this.G) {
       this.emitter.emit("uplink:replaceLog", [...this.G!.log.map((x: LogItem) => logToText(this.G!, x))].flat(1));
@@ -286,6 +330,9 @@ export default class Game extends Vue {
     if (this.animationQueue.length > 0) {
       this.animationQueue.shift()!();
       setTimeout(() => this.updateUI());
+      return;
+    }
+    if (this.paused) {
       return;
     }
     if (this.G!.log.length < this._futureState!.log.length) {
