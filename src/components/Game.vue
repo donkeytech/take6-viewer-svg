@@ -86,7 +86,7 @@ import { logToText } from '../utils/log-to-text';
             discard: [],
             isAI: player.isAI
           })),
-          rows: [[], [], [], []],
+          rows: [[], [], [], []] as [ICard[], ICard[], ICard[], ICard[]],
           seed: '',
           round: 0,
           phase: Phase.ChooseCard,
@@ -100,7 +100,7 @@ import { logToText } from '../utils/log-to-text';
       if (this.G!.log.length + 1 === to) {
         this.advanceLog();
       } else if (this.G!.log.length + 1 < to) {
-        this.replaceState(reconstructState(this.G, this._futureState!.log.slice(this.G!.log.length, to)), false);
+        this.replaceState(reconstructState(this.G!, this._futureState!.log.slice(this.G!.log.length, to)), false);
       }
 
       this.emitter.emit("replay:info", {start: 1, current: this.G!.log.length, end: this._futureState!.log.length});
