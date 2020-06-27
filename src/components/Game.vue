@@ -54,7 +54,7 @@
 </template>
 <script lang="ts">
 import { Vue, Component, Prop, Watch, Provide, ProvideReactive } from 'vue-property-decorator';
-import { LogItem, MoveName, Card as ICard, AvailableMoves, GameEventName, Phase } from 'take6-engine';
+import { LogItem, MoveName, Card as ICard, AvailableMoves, GameEventName, Phase, reconstructState } from 'take6-engine';
 import type { GameState } from 'take6-engine';
 import { EventEmitter } from 'events';
 import Card from "./Card.vue";
@@ -76,7 +76,7 @@ import { logToText } from '../utils/log-to-text';
 
     this.emitter.on("replayTo", (to: number) => {
       if (to < this.G!.log.length) {
-        this.replaceState({
+        const baseState = {
           players: this.G!.players.map(player => ({
             hand: [],
             points: 0,
@@ -92,11 +92,15 @@ import { logToText } from '../utils/log-to-text';
           phase: Phase.ChooseCard,
           options: this.G!.options,
           log: []
-        }, false);
+        };
+
+        this.replaceState(reconstructState(baseState, this._futureState!.log.slice(0, to)), false);
       }
 
-      while (this.G!.log.length < to) {
-        this.advanceLog(true);
+      if (this.G!.log.length + 1 === to) {
+        this.advanceLog();
+      } else if (this.G!.log.length + 1 < to) {
+        this.replaceState(reconstructState(this.G, this._futureState!.log.slice(this.G!.log.length, to)), false);
       }
 
       this.emitter.emit("replay:info", {start: 1, current: this.G!.log.length, end: this._futureState!.log.length});
@@ -352,7 +356,7 @@ export default class Game extends Vue {
     }
   }
 
-  advanceLog(noAnimation = false) {
+  advanceLog() {
     console.log("advancing log", this.G!.log.length, this._futureState!.log.length);
     const logItem = this._futureState!.log[this.G!.log.length];
     this.G!.log.push(logItem);
@@ -370,9 +374,7 @@ export default class Game extends Vue {
             console.log("choosing card", player);
             this.G!.players[player].faceDownCard = move.data;
 
-            if (!noAnimation) {
-              this.delay(200);
-            }
+            this.delay(200);
 
             if (player === (this.player || 0)) {
               this.G!.players[this.player!].hand = this.handCards!.filter(card => card.number !== move.data.number);
@@ -394,7 +396,7 @@ export default class Game extends Vue {
               this.queueAnimation(() => {
                 console.log("delaying before taking row");
                 this.delay(200);
-              }, noAnimation);
+              });
               this.queueAnimation(() => {
                 console.log("Taking row");
                 this.G!.players[player].points += sumBy(this.G!.rows[move.data.row].slice(0, 5), "points");
@@ -404,12 +406,12 @@ export default class Game extends Vue {
 
                 console.log("delaying after taking row");
                 this.delay(300);
-              }, noAnimation);
+              });
               // Then move card to correct spot
               this.queueAnimation(() => {
                 this.G!.rows[move.data.row] = [card];
                 this.G!.rows = [...this.G!.rows];
-              }, noAnimation);
+              });
             } else {
               this.G!.rows[move.data.row].push(card);
               this.G!.rows = [...this.G!.rows];
@@ -462,11 +464,7 @@ export default class Game extends Vue {
     console.log("waiting animations", this.ui.waitingAnimations, this._futureState!.log.length, this.state!.log.length);
   }
 
-  queueAnimation(anim: Function, immediate = false) {
-    if (immediate) {
-      anim();
-      return;
-    }
+  queueAnimation(anim: Function) {
     this.animationQueue.push(anim);
   }
 
