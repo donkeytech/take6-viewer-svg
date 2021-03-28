@@ -24,6 +24,7 @@ function launch (selector: string) {
     console.log("updating state to", data);
     params.state = data;
     app.$forceUpdate();
+    app.$nextTick().then(() => item.emit('ready'))
   });
   item.addListener("state:updated", () => item.emit("fetchLog", { start: params.state?.log.length }));
   item.addListener("player", data => {
